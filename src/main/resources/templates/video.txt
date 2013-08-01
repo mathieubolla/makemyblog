@@ -1,0 +1,15 @@
+	<div class="panel">
+		<div class="panel-heading"><h3 class="panel-title">%s</h3></div>
+		<div class="row">
+				<div class="col-sm-2 col-lg-3">&nbsp;</div>
+				<div class="col-12 col-sm-8 col-lg-6">
+					<video id="video-%s" height="200" width="320" controls preload="none" class="video-js vjs-default-skin"
+					  data-setup='{"example_option":true}'>
+					  <source src="%s" type="video/mp4">
+					  <source src="%s" type="video/webm">
+					  Your browser does not support the video tag.
+					</video>
+				</div>
+			<div class="col-sm-2 col-lg-3">&nbsp;</div>
+		</div>
+	</div>

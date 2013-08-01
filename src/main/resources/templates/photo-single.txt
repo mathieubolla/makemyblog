@@ -1,0 +1,5 @@
+<div class="row">
+	<div class="col-12 col-sm-12">
+		<img src="%s" style="max-width:100%%;height:auto;; height: auto;">
+	</div>
+</div>

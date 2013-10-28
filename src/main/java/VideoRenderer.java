@@ -16,12 +16,12 @@ public class VideoRenderer implements Renderer {
 
     @Override
     public boolean accept(File input) {
-        return input.isFile() && input.getAbsolutePath().toLowerCase().endsWith(".mov");
+        return input.isFile() && (input.getAbsolutePath().toLowerCase().endsWith(".mov") || input.getAbsolutePath().toLowerCase().endsWith(".m4v"));
     }
 
     @Override
     public void renderTo(StringBuilder destination, File input) {
         Video video = videoService.transcode(input, baseUrl);
-        destination.append(String.format(videoContentTemplate, StringShortcuts.makeTitleFrom(video.getName()), videoIndex.incrementAndGet() + "", video.getOutputUrlH264(), video.getOutputUrlWebM()));
+        destination.append(String.format(videoContentTemplate, StringShortcuts.makeTitleFrom(video.getName()), videoIndex.incrementAndGet() + "", video.getOutputUrlPoster1(), video.getOutputUrlH264(), video.getOutputUrlWebM(), video.getOutputUrlSDH264(), video.getOutputUrlSDWebM()));
     }
 }

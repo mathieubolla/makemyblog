@@ -10,13 +10,17 @@ public class VideoService {
     private final StorageService storage;
     private final String presetIdH264;
     private final String presetIdWebM;
+    private final String presetIdSDH264;
+    private final String presetIdSDWebM;
     private final String pipelineId;
 
-    public VideoService(AmazonElasticTranscoder transcoder, StorageService storage, String presetIdH264, String presetIdWebM, String pipelineId) {
+    public VideoService(AmazonElasticTranscoder transcoder, StorageService storage, String presetIdH264, String presetIdWebM, String presetIdSDH264, String presetIdSDWebM, String pipelineId) {
         this.transcoder = transcoder;
         this.storage = storage;
         this.presetIdH264 = presetIdH264;
         this.presetIdWebM = presetIdWebM;
+        this.presetIdSDH264 = presetIdSDH264;
+        this.presetIdSDWebM = presetIdSDWebM;
         this.pipelineId = pipelineId;
     }
 
@@ -32,6 +36,14 @@ public class VideoService {
 
         if (!storage.exists(video.getOutputKeyWebM())) {
             sendJob(video.getInputKey(), video.getOutputKeyWebM(), presetIdWebM);
+        }
+
+        if (!storage.exists(video.getOutputKeySDH264())) {
+            sendJob(video.getInputKey(), video.getOutputKeySDH264(), presetIdSDH264);
+        }
+
+        if (!storage.exists(video.getOutputKeySDWebM())) {
+            sendJob(video.getInputKey(), video.getOutputKeySDWebM(), presetIdSDWebM);
         }
 
         return video;

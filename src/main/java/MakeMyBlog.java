@@ -5,14 +5,13 @@ import com.amazonaws.services.elastictranscoder.AmazonElasticTranscoder;
 import com.amazonaws.services.elastictranscoder.AmazonElasticTranscoderClient;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
+import com.google.common.collect.Lists;
 import org.apache.commons.io.IOUtils;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
 
 public class MakeMyBlog {
     public static void main(String... args) throws IOException, InterruptedException {
@@ -29,7 +28,7 @@ public class MakeMyBlog {
 
         StorageService storage = new StorageService(s3, properties.getProperty("BUCKET_NAME"));
 
-        VideoService videoService = new VideoService(transcoder, storage, properties.getProperty("PRESET_ID_H264"), properties.getProperty("PRESET_ID_WEBM"), properties.getProperty("PIPELINE_TRANSCODE_FOR_MP4"));
+        VideoService videoService = new VideoService(transcoder, storage, properties.getProperty("PRESET_ID_H264"), properties.getProperty("PRESET_ID_WEBM"), properties.getProperty("PRESET_ID_SD_H264"), properties.getProperty("PRESET_ID_SD_WEBM"), properties.getProperty("PIPELINE_TRANSCODE_FOR_MP4"));
         String baseUrl = properties.getProperty("BASE_URL");
         PhotoService photoService = new PhotoService(storage, baseUrl);
         List<Renderer> renderers = Arrays.asList(

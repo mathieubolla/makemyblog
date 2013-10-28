@@ -15,7 +15,7 @@ public class Video {
             throw new IllegalArgumentException(e);
         }
         checkArgument(baseUrl.endsWith("/"));
-        checkArgument(inputFile.getAbsolutePath().endsWith(".mov"));
+        checkArgument(inputFile.getAbsolutePath().endsWith(".mov") || inputFile.getAbsolutePath().endsWith(".m4v"));
         this.inputFile = inputFile;
         this.baseUrl = baseUrl;
     }
@@ -25,11 +25,19 @@ public class Video {
     }
 
     public String getOutputUrlH264() {
-        return getInputUrl().replace(".mov", ".h264");
+        return getInputUrl().replace(".mov", ".h264").replace(".m4v", ".h264");
     }
 
     public String getOutputUrlWebM() {
-        return getInputUrl().replace(".mov", ".webm");
+        return getInputUrl().replace(".mov", ".webm").replace(".m4v", ".webm");
+    }
+
+    public String getOutputUrlSDWebM() {
+        return getInputUrl().replace(".mov", ".sd.webm").replace(".m4v", ".sd.webm");
+    }
+
+    public String getOutputUrlSDH264() {
+        return getInputUrl().replace(".mov", ".sd.h264").replace(".m4v", ".sd.h264");
     }
 
     public String getInputKey() {
@@ -42,6 +50,14 @@ public class Video {
 
     public String getOutputKeyWebM() {
         return removeBaseUrl(getOutputUrlWebM());
+    }
+
+    public String getOutputKeySDH264() {
+        return removeBaseUrl(getOutputUrlSDH264());
+    }
+
+    public String getOutputKeySDWebM() {
+        return removeBaseUrl(getOutputUrlSDWebM());
     }
 
     public String getOutputUrlPoster1() {

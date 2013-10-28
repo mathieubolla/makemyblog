@@ -44,6 +44,10 @@ public class Video {
         return removeBaseUrl(getOutputUrlWebM());
     }
 
+    public String getOutputUrlPoster1() {
+        return getOutputUrlH264() + "00002.png";
+    }
+
     public String getName() {
         String absolutePath = inputFile.getAbsolutePath();
 

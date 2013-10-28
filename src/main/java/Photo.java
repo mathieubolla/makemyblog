@@ -26,11 +26,11 @@ public class Photo {
         key = parentName + '/' + inputName;
     }
 
-    public String getPngUrl() {
-        return baseUrl + getPngKey();
+    public String getUrl() {
+        return baseUrl + getKey();
     }
 
-    public String getPngKey() {
-        return key.replace(".jpg", ".png");
+    public String getKey() {
+        return key;
     }
 }

@@ -69,14 +69,14 @@ public class AlbumRenderer implements Renderer {
     private void addSinglePhoto(List<String> photos, File photo1) {
         Photo photoPng = photoService.transcode(photo1);
 
-        photos.add(String.format(photoSingleTemplate, photoPng.getPngUrl()));
+        photos.add(String.format(photoSingleTemplate, photoPng.getUrl()));
     }
 
     private void addPhotoPair(List<String> photos, File photo1, File photo2) {
         Photo photoPng1 = photoService.transcode(photo1);
         Photo photoPng2 = photoService.transcode(photo2);
 
-        photos.add(String.format(photoPairTemplate, photoPng1.getPngUrl(), photoPng2.getPngUrl()));
+        photos.add(String.format(photoPairTemplate, photoPng1.getUrl(), photoPng2.getUrl()));
     }
 
 }

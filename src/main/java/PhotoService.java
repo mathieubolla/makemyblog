@@ -15,8 +15,8 @@ public class PhotoService {
     public Photo transcode(File inputFile) {
         Photo photo = new Photo(inputFile, baseUrl);
         try {
-            if (!storage.exists(photo.getPngKey())) {
-                storage.sendPublic(compressPhotoFile(inputFile), photo.getPngKey(), "image/png");
+            if (!storage.exists(photo.getKey())) {
+                storage.sendPublic(compressPhotoFile(inputFile), photo.getKey(), "image/jpg");
             }
 
             return photo;
@@ -30,7 +30,7 @@ public class PhotoService {
     private static File compressPhotoFile(File input) throws InterruptedException, IOException {
         File output = File.createTempFile("tempPhoto", ".jpg");
 
-        List<String> commandLine = Arrays.asList("/usr/local/bin/gm", "convert", "-size", "600x600", input.getAbsolutePath(), "-resize", "600x600", "-background", "white", "-compose", "Copy", "-gravity", "center", "-extent", "600x600", "-quality", "80", output.getAbsolutePath());
+        List<String> commandLine = Arrays.asList("/usr/local/bin/gm", "convert", "-size", "600x600", input.getAbsolutePath(), "-resize", "600x600", "-background", "white", "-compose", "Copy", "-gravity", "center", "-extent", "600x600", "-quality", "60", output.getAbsolutePath());
 
         ProcessBuilder builder = new ProcessBuilder(commandLine).directory(new File("/usr/local/bin"));
 

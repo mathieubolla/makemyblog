@@ -5,6 +5,8 @@ import com.amazonaws.services.elastictranscoder.AmazonElasticTranscoder;
 import com.amazonaws.services.elastictranscoder.AmazonElasticTranscoderClient;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
+import com.google.common.base.Predicate;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
 import org.apache.commons.io.IOUtils;
 
@@ -26,17 +28,42 @@ public class MakeMyBlog {
         transcoder.setRegion(Region.getRegion(Regions.EU_WEST_1));
         s3.setRegion(Region.getRegion(Regions.EU_WEST_1));
 
-        StorageService storage = new StorageService(s3, properties.getProperty("BUCKET_NAME"));
+        final StorageService storage = new StorageService(s3, properties.getProperty("BUCKET_NAME"));
 
         VideoService videoService = new VideoService(transcoder, storage, properties.getProperty("PRESET_ID_H264"), properties.getProperty("PRESET_ID_WEBM"), properties.getProperty("PRESET_ID_SD_H264"), properties.getProperty("PRESET_ID_SD_WEBM"), properties.getProperty("PIPELINE_TRANSCODE_FOR_MP4"));
         String baseUrl = properties.getProperty("BASE_URL");
         PhotoService photoService = new PhotoService(storage, baseUrl);
-        List<Renderer> renderers = Arrays.asList(
+        final List<Renderer> renderers = Arrays.asList(
                 new AlbumRenderer(photoService, loadResource("templates/album-start.txt"), loadResource("templates/album-end.txt"), loadResource("templates/photo-pair.txt"), loadResource("templates/photo-single.txt"), loadResource("templates/photo-separator.txt")),
                 new VideoRenderer(videoService, baseUrl, loadResource("templates/video.txt")),
                 new TexteRenderer(loadResource("templates/texte.txt")));
 
-        sendIndexFile(storage, makeContent(renderers, args[0]));
+
+        final List<List<File>> sortedFiles = Lists.partition(FluentIterable.from(listSortedFiles(args[0])).filter(new Predicate<File>() {
+            @Override
+            public boolean apply(File input) {
+                for (Renderer renderer : renderers) {
+                    if (renderer.accept(input)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }).toList(), 4);
+
+        if (sortedFiles.size() == 1) {
+            sendIndexFile(storage, makeContent(renderers, sortedFiles.get(0), 0, false));
+        } else {
+            sendIndexFile(storage, makeContent(renderers, sortedFiles.get(0), 0, true));
+            for (int i = 1; i < sortedFiles.size(); i++) {
+                if (i == sortedFiles.size() - 1) {
+                    sendPageFile(storage, i, makeContent(renderers, sortedFiles.get(i), i, false));
+                } else {
+                    sendPageFile(storage, i, makeContent(renderers, sortedFiles.get(i), i, true));
+                }
+            }
+        }
+
         sendSupportFiles(storage);
     }
 
@@ -48,9 +75,60 @@ public class MakeMyBlog {
         }
     }
 
-    private static String makeContent(List<Renderer> renderers, String pathname) {
-        File sources = new File(pathname);
+    private static String makeContent(List<Renderer> renderers, List<File> sortedFiles, int pageNum, boolean hasNext) {
         StringBuilder html = new StringBuilder(loadResource("templates/start.txt"));
+        boolean shouldOpen = true;
+
+        if (pageNum >= 2) {
+            html.append("<div class=\"row\">").append(String.format(loadResource("templates/previousPage.txt"), "page-" + (pageNum - 1) + ".html"));
+            shouldOpen = false;
+        }
+        if (pageNum == 1) {
+            html.append("<div class=\"row\">").append(String.format(loadResource("templates/previousPage.txt"), "index.html"));
+            shouldOpen = false;
+        }
+        if (hasNext) {
+            if (shouldOpen) {
+                html.append("<div class=\"row\"><div class=\"col-xs-6 col-sm-6 col-md-6 col-lg-6\">&nbsp;</div>");
+            }
+            html.append(String.format(loadResource("templates/nextPage.txt"), "page-" + (pageNum + 1) + ".html"));
+        }
+
+        html.append("</div><div class=\"row\">&nbsp;</div><div class=\"row\">");
+
+        for (File element : sortedFiles) {
+            for (Renderer renderer : renderers) {
+                if (renderer.accept(element)) {
+                    System.err.println("Rendering "+element+" with "+renderer);
+                    renderer.renderTo(html, element);
+                }
+            }
+        }
+
+        html.append("</div>");
+
+        shouldOpen = true;
+        if (pageNum >= 2) {
+            html.append("<div class=\"row\">").append(String.format(loadResource("templates/previousPage.txt"), "page-" + (pageNum - 1) + ".html"));
+            shouldOpen = false;
+        }
+        if (pageNum == 1) {
+            html.append("<div class=\"row\">").append(String.format(loadResource("templates/previousPage.txt"), "index.html"));
+            shouldOpen = false;
+        }
+        if (hasNext) {
+            if (shouldOpen) {
+                html.append("<div class=\"row\"><div class=\"col-xs-6 col-sm-6 col-md-6 col-lg-6\">&nbsp;</div>");
+            }
+            html.append(String.format(loadResource("templates/nextPage.txt"), "page-" + (pageNum + 1) + ".html"));
+        }
+        html.append("</div>");
+
+        return html.append(loadResource("templates/end.txt")).toString();
+    }
+
+    private static List<File> listSortedFiles(String pathname) {
+        File sources = new File(pathname);
 
         File[] files = sources.listFiles();
         if (files == null) {
@@ -64,21 +142,15 @@ public class MakeMyBlog {
                 return o2.getAbsolutePath().compareTo(o1.getAbsolutePath());
             }
         });
-
-        for (File element : sortedFiles) {
-            for (Renderer renderer : renderers) {
-                if (renderer.accept(element)) {
-                    System.out.println("Rendering "+element+" with "+renderer);
-                    renderer.renderTo(html, element);
-                }
-            }
-        }
-
-        return html.append(loadResource("templates/end.txt")).toString();
+        return sortedFiles;
     }
 
     private static void sendIndexFile(StorageService storage, String content) {
         storage.sendPublic(content, "index.html", "text/html");
+    }
+
+    private static void sendPageFile(StorageService storage, int page, String content) {
+        storage.sendPublic(content, "page-"+page+".html", "text/html");
     }
 
     private static void sendSupportFiles(StorageService storage) throws IOException {

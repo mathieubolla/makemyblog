@@ -52,9 +52,23 @@ public class MakeMyBlog {
         File sources = new File(pathname);
         StringBuilder html = new StringBuilder(loadResource("templates/start.txt"));
 
-        for (File element : sources.listFiles()) {
+        File[] files = sources.listFiles();
+        if (files == null) {
+            throw new RuntimeException("No content");
+        }
+
+        List<File> sortedFiles = Lists.newArrayList(files);
+        Collections.sort(sortedFiles, new Comparator<File>() {
+            @Override
+            public int compare(File o1, File o2) {
+                return o2.getAbsolutePath().compareTo(o1.getAbsolutePath());
+            }
+        });
+
+        for (File element : sortedFiles) {
             for (Renderer renderer : renderers) {
                 if (renderer.accept(element)) {
+                    System.out.println("Rendering "+element+" with "+renderer);
                     renderer.renderTo(html, element);
                 }
             }

@@ -24,7 +24,7 @@ public class PhotoTest {
     public void shouldKnowItsPaths() {
         Photo photo = new Photo(new File("/some/where/albumDirectory/photo.jpg"), "https://mon.bucket.com/");
 
-        assertEquals(photo.getPngKey(), "albumDirectory/photo.png");
-        assertEquals(photo.getPngUrl(), "https://mon.bucket.com/albumDirectory/photo.png");
+        assertEquals(photo.getKey(), "albumDirectory/photo.jpg");
+        assertEquals(photo.getUrl(), "https://mon.bucket.com/albumDirectory/photo.jpg");
     }
 }

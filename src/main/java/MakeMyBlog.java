@@ -8,10 +8,7 @@ import com.amazonaws.services.s3.AmazonS3Client;
 import com.github.mustachejava.DefaultMustacheFactory;
 import com.github.mustachejava.MustacheFactory;
 import com.google.common.base.Predicate;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import com.google.common.collect.*;
 import org.apache.commons.io.IOUtils;
 
 import java.io.File;
@@ -45,13 +42,18 @@ public class MakeMyBlog {
                 new VideoRenderer(videoService, baseUrl, mustacheFactory),
                 new TexteRenderer(loadResource("templates/texte.txt")));
 
-        final List<List<File>> sortedFiles = Lists.partition(FluentIterable.from(listSortedFiles(args[0])).filter(willRender(renderers)).toList(), 4);
+        final Iterable<List<File>> sortedFiles = Iterables.partition(FluentIterable.from(listSortedFiles(args[0])).filter(willRender(renderers)).toList(), 4);
 
         Map<String, Object> context = buildContext(properties);
-        
-        sendPageFile(storage, makeContent(renderers, sortedFiles.get(0), 0, sortedFiles.size() > 1, mustacheFactory, context), "index.html");
-        for (int i = 1; i < sortedFiles.size(); i++) {
-            sendPageFile(storage, makeContent(renderers, sortedFiles.get(i), i, i != sortedFiles.size() - 1, mustacheFactory, context), "page-" + i + ".html");
+
+        Iterator<List<File>> pages = sortedFiles.iterator();
+        int pageId = 0;
+        while (pages.hasNext()) {
+            List<File> pageContent = pages.next();
+
+            sendPageFile(storage, makeContent(renderers, pageContent, pageId, pages.hasNext(), mustacheFactory, context), pageId == 0 ? "index.html" : "page-" + pageId + ".html");
+
+            pageId = pageId + 1;
         }
 
         sendSupportFiles(storage);

@@ -3,16 +3,15 @@ import com.github.mustachejava.MustacheFactory;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
-import java.util.List;
 import java.util.concurrent.Callable;
 
 import static com.google.common.collect.FluentIterable.from;
+import static com.google.common.collect.Iterables.partition;
 import static java.util.Arrays.asList;
 
 public class AlbumRenderer implements Renderer {
@@ -45,20 +44,19 @@ public class AlbumRenderer implements Renderer {
 
     @Override
     public void renderTo(StringBuilder destination, File input) {
-        Iterable<List<Callable<String>>> filePairs = Iterables.partition(from(listFiles(input)).filter(IS_FILE).filter(IS_JPG).transform(JPG_FILE_TO_URL), 2);
+
+        ImmutableMap<Object, Object> context = ImmutableMap.builder()
+                .put("title", StringShortcuts.makeTitleFrom(input.getAbsolutePath()))
+                .put("picturePairs", partition(from(listFiles(input)).filter(IS_FILE).filter(IS_JPG).transform(JPG_FILE_TO_URL), 2))
+                .build();
 
         StringWriter writer = new StringWriter();
         try {
-            albumMustache.execute(
-                    writer,
-                    ImmutableMap.builder()
-                        .put("title", StringShortcuts.makeTitleFrom(input.getAbsolutePath()))
-                        .put("picturePairs", filePairs)
-                        .build()
-            ).flush();
+            albumMustache.execute(writer,context).flush();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+
         destination.append(writer.toString());
     }
 

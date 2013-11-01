@@ -7,6 +7,7 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.github.mustachejava.DefaultMustacheFactory;
 import com.github.mustachejava.MustacheFactory;
+import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.*;
 import org.apache.commons.io.IOUtils;
@@ -16,6 +17,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.*;
+import java.util.concurrent.Callable;
 
 public class MakeMyBlog {
     public static void main(String... args) throws IOException, InterruptedException {
@@ -81,24 +83,43 @@ public class MakeMyBlog {
         }
     }
 
-    private static String makeContent(List<Renderer> renderers, List<File> sortedFiles, int pageNum, boolean hasNext, MustacheFactory mustacheFactory, Map<String, Object> context) {
-        StringBuilder html = new StringBuilder(renderContext(mustacheFactory, "start.mustache", context));
-
-        String pagination = buildPagination(pageNum, hasNext, mustacheFactory);
-
-        html.append(pagination);
-        html.append("<div class=\"row\"><div class=\"spacer\">&nbsp;</div></div>");
-        for (File element : sortedFiles) {
-            for (Renderer renderer : renderers) {
-                if (renderer.accept(element)) {
-                    System.err.println("Rendering " + element + " with " + renderer);
-                    renderer.renderTo(html, element);
-                }
-            }
+    private static String makeContent(final List<Renderer> renderers, List<File> sortedFiles, int pageNum, boolean hasNext, MustacheFactory mustacheFactory, Map<String, Object> context) {
+        if (pageNum >= 2) {
+            context.put("previous", "page-" + (pageNum - 1) + ".html");
         }
-        html.append(pagination);
+        if (pageNum == 1) {
+            context.put("previous", "index.html");
+        }
+        if (hasNext) {
+            context.put("next", "page-" + (pageNum + 1) + ".html");
+        }
 
-        return html.append(loadResource("templates/end.txt")).toString();
+        context.put("content", FluentIterable.from(sortedFiles).transform(new Function<File, Callable<String>>() {
+            @Override
+            public Callable<String> apply(final File input) {
+                for (final Renderer renderer : renderers) {
+                    if (renderer.accept(input)) {
+                        return new Callable<String>() {
+                            @Override
+                            public String call() throws Exception {
+                                StringBuilder buffer = new StringBuilder();
+                                renderer.renderTo(buffer, input);
+                                return buffer.toString();
+                            }
+                        };
+                    }
+                }
+
+                return new Callable<String>() {
+                    @Override
+                    public String call() throws Exception {
+                        return "";
+                    }
+                };
+            }
+        }));
+
+        return renderContext(mustacheFactory, "start.mustache", context);
     }
 
     private static Map<String, Object> buildContext(Properties properties) {
@@ -110,21 +131,6 @@ public class MakeMyBlog {
             context.put("title", properties.getProperty("TITLE"));
         }
         return context;
-    }
-
-    private static String buildPagination(int pageNum, boolean hasNext, MustacheFactory mustacheFactory) {
-        Map<String, Object> context = Maps.newHashMap();
-        if (pageNum >= 2) {
-            context.put("previous", "page-" + (pageNum - 1) + ".html");
-        }
-        if (pageNum == 1) {
-            context.put("previous", "index.html");
-        }
-        if (hasNext) {
-            context.put("next", "page-" + (pageNum + 1) + ".html");
-        }
-
-        return renderContext(mustacheFactory, "pagination.mustache", context);
     }
 
     private static String renderContext(MustacheFactory mustacheFactory, String name, Map<String, Object> context) {

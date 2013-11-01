@@ -33,7 +33,7 @@ public class MakeMyBlog {
         transcoder.setRegion(Region.getRegion(Regions.EU_WEST_1));
         s3.setRegion(Region.getRegion(Regions.EU_WEST_1));
 
-        final StorageService storage = new StorageService(s3, properties.getProperty("BUCKET_NAME"));
+        StorageService storage = new StorageService(s3, properties.getProperty("BUCKET_NAME"));
 
         VideoService videoService = new VideoService(transcoder, storage, properties.getProperty("PRESET_ID_H264"), properties.getProperty("PRESET_ID_WEBM"), properties.getProperty("PRESET_ID_SD_H264"), properties.getProperty("PRESET_ID_SD_WEBM"), properties.getProperty("PIPELINE_TRANSCODE_FOR_MP4"));
         String baseUrl = properties.getProperty("BASE_URL");
@@ -57,17 +57,11 @@ public class MakeMyBlog {
             }
         }).toList(), 4);
 
-        if (sortedFiles.size() == 1) {
-            sendIndexFile(storage, makeContent(renderers, sortedFiles.get(0), 0, false, mustacheFactory));
-        } else {
-            sendIndexFile(storage, makeContent(renderers, sortedFiles.get(0), 0, true, mustacheFactory));
-            for (int i = 1; i < sortedFiles.size(); i++) {
-                if (i == sortedFiles.size() - 1) {
-                    sendPageFile(storage, i, makeContent(renderers, sortedFiles.get(i), i, false, mustacheFactory));
-                } else {
-                    sendPageFile(storage, i, makeContent(renderers, sortedFiles.get(i), i, true, mustacheFactory));
-                }
-            }
+        Map<String, Object> context = buildContext(properties);
+        
+        sendPageFile(storage, makeContent(renderers, sortedFiles.get(0), 0, sortedFiles.size() > 1, mustacheFactory, context), "index.html");
+        for (int i = 1; i < sortedFiles.size(); i++) {
+            sendPageFile(storage, makeContent(renderers, sortedFiles.get(i), i, i != sortedFiles.size() - 1, mustacheFactory, context), "page-" + i + ".html");
         }
 
         sendSupportFiles(storage);
@@ -81,8 +75,8 @@ public class MakeMyBlog {
         }
     }
 
-    private static String makeContent(List<Renderer> renderers, List<File> sortedFiles, int pageNum, boolean hasNext, MustacheFactory mustacheFactory) {
-        StringBuilder html = new StringBuilder(loadResource("templates/start.txt"));
+    private static String makeContent(List<Renderer> renderers, List<File> sortedFiles, int pageNum, boolean hasNext, MustacheFactory mustacheFactory, Map<String, Object> context) {
+        StringBuilder html = new StringBuilder(renderContext(mustacheFactory, "start.mustache", context));
 
         String pagination = buildPagination(pageNum, hasNext, mustacheFactory);
 
@@ -101,6 +95,17 @@ public class MakeMyBlog {
         return html.append(loadResource("templates/end.txt")).toString();
     }
 
+    private static Map<String, Object> buildContext(Properties properties) {
+        Map<String, Object> context = Maps.newHashMap();
+        if (properties.containsKey("GA_ID") && properties.containsKey("GA_DN")) {
+            context.put("ga", ImmutableMap.builder().put("id", properties.getProperty("GA_ID")).put("dn", properties.getProperty("GA_DN")).build());
+        }
+        if (properties.containsKey("TITLE")) {
+            context.put("title", properties.getProperty("TITLE"));
+        }
+        return context;
+    }
+
     private static String buildPagination(int pageNum, boolean hasNext, MustacheFactory mustacheFactory) {
         Map<String, Object> context = Maps.newHashMap();
         if (pageNum >= 2) {
@@ -113,9 +118,13 @@ public class MakeMyBlog {
             context.put("next", "page-" + (pageNum + 1) + ".html");
         }
 
+        return renderContext(mustacheFactory, "pagination.mustache", context);
+    }
+
+    private static String renderContext(MustacheFactory mustacheFactory, String name, Map<String, Object> context) {
         StringWriter writer = new StringWriter();
         try {
-            mustacheFactory.compile("pagination.mustache").execute(writer, context).flush();
+            mustacheFactory.compile(name).execute(writer, context).flush();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -140,12 +149,8 @@ public class MakeMyBlog {
         return sortedFiles;
     }
 
-    private static void sendIndexFile(StorageService storage, String content) {
-        storage.sendPublic(content, "index.html", "text/html");
-    }
-
-    private static void sendPageFile(StorageService storage, int page, String content) {
-        storage.sendPublic(content, "page-" + page + ".html", "text/html");
+    private static void sendPageFile(StorageService storage, String content, String pageName) {
+        storage.sendPublic(content, pageName, "text/html");
     }
 
     private static void sendSupportFiles(StorageService storage) throws IOException {

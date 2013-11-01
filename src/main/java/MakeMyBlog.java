@@ -38,7 +38,7 @@ public class MakeMyBlog {
 
         final List<Renderer> renderers = Arrays.asList(
                 new AlbumRenderer(photoService, mustacheFactory),
-                new VideoRenderer(videoService, baseUrl, loadResource("templates/video.txt")),
+                new VideoRenderer(videoService, baseUrl, mustacheFactory),
                 new TexteRenderer(loadResource("templates/texte.txt")));
 
         final List<List<File>> sortedFiles = Lists.partition(FluentIterable.from(listSortedFiles(args[0])).filter(new Predicate<File>() {

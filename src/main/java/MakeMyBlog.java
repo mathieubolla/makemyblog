@@ -6,14 +6,18 @@ import com.amazonaws.services.elastictranscoder.AmazonElasticTranscoderClient;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.github.mustachejava.DefaultMustacheFactory;
+import com.github.mustachejava.MustacheFactory;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import org.apache.commons.io.IOUtils;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.util.*;
 
 public class MakeMyBlog {
@@ -54,14 +58,14 @@ public class MakeMyBlog {
         }).toList(), 4);
 
         if (sortedFiles.size() == 1) {
-            sendIndexFile(storage, makeContent(renderers, sortedFiles.get(0), 0, false));
+            sendIndexFile(storage, makeContent(renderers, sortedFiles.get(0), 0, false, mustacheFactory));
         } else {
-            sendIndexFile(storage, makeContent(renderers, sortedFiles.get(0), 0, true));
+            sendIndexFile(storage, makeContent(renderers, sortedFiles.get(0), 0, true, mustacheFactory));
             for (int i = 1; i < sortedFiles.size(); i++) {
                 if (i == sortedFiles.size() - 1) {
-                    sendPageFile(storage, i, makeContent(renderers, sortedFiles.get(i), i, false));
+                    sendPageFile(storage, i, makeContent(renderers, sortedFiles.get(i), i, false, mustacheFactory));
                 } else {
-                    sendPageFile(storage, i, makeContent(renderers, sortedFiles.get(i), i, true));
+                    sendPageFile(storage, i, makeContent(renderers, sortedFiles.get(i), i, true, mustacheFactory));
                 }
             }
         }
@@ -77,27 +81,13 @@ public class MakeMyBlog {
         }
     }
 
-    private static String makeContent(List<Renderer> renderers, List<File> sortedFiles, int pageNum, boolean hasNext) {
+    private static String makeContent(List<Renderer> renderers, List<File> sortedFiles, int pageNum, boolean hasNext, MustacheFactory mustacheFactory) {
         StringBuilder html = new StringBuilder(loadResource("templates/start.txt"));
-        boolean shouldOpen = true;
 
-        if (pageNum >= 2) {
-            html.append("<div class=\"row\">").append(String.format(loadResource("templates/previousPage.txt"), "page-" + (pageNum - 1) + ".html"));
-            shouldOpen = false;
-        }
-        if (pageNum == 1) {
-            html.append("<div class=\"row\">").append(String.format(loadResource("templates/previousPage.txt"), "index.html"));
-            shouldOpen = false;
-        }
-        if (hasNext) {
-            if (shouldOpen) {
-                html.append("<div class=\"row\"><div class=\"col-xs-6 col-sm-6 col-md-6 col-lg-6\">&nbsp;</div>");
-            }
-            html.append(String.format(loadResource("templates/nextPage.txt"), "page-" + (pageNum + 1) + ".html"));
-        }
+        String pagination = buildPagination(pageNum, hasNext, mustacheFactory);
 
-        html.append("</div><div class=\"row\">&nbsp;</div><div class=\"row\">");
-
+        html.append(pagination);
+        html.append("<div class=\"row\"><div class=\"spacer\">&nbsp;</div></div>");
         for (File element : sortedFiles) {
             for (Renderer renderer : renderers) {
                 if (renderer.accept(element)) {
@@ -106,27 +96,30 @@ public class MakeMyBlog {
                 }
             }
         }
-
-        html.append("</div>");
-
-        shouldOpen = true;
-        if (pageNum >= 2) {
-            html.append("<div class=\"row\">").append(String.format(loadResource("templates/previousPage.txt"), "page-" + (pageNum - 1) + ".html"));
-            shouldOpen = false;
-        }
-        if (pageNum == 1) {
-            html.append("<div class=\"row\">").append(String.format(loadResource("templates/previousPage.txt"), "index.html"));
-            shouldOpen = false;
-        }
-        if (hasNext) {
-            if (shouldOpen) {
-                html.append("<div class=\"row\"><div class=\"col-xs-6 col-sm-6 col-md-6 col-lg-6\">&nbsp;</div>");
-            }
-            html.append(String.format(loadResource("templates/nextPage.txt"), "page-" + (pageNum + 1) + ".html"));
-        }
-        html.append("</div>");
+        html.append(pagination);
 
         return html.append(loadResource("templates/end.txt")).toString();
+    }
+
+    private static String buildPagination(int pageNum, boolean hasNext, MustacheFactory mustacheFactory) {
+        Map<String, Object> context = Maps.newHashMap();
+        if (pageNum >= 2) {
+            context.put("previous", "page-" + (pageNum - 1) + ".html");
+        }
+        if (pageNum == 1) {
+            context.put("previous", "index.html");
+        }
+        if (hasNext) {
+            context.put("next", "page-" + (pageNum + 1) + ".html");
+        }
+
+        StringWriter writer = new StringWriter();
+        try {
+            mustacheFactory.compile("pagination.mustache").execute(writer, context).flush();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return writer.toString();
     }
 
     private static List<File> listSortedFiles(String pathname) {

@@ -1,1 +1,0 @@
-<div class="col-xs-6 col-sm-6 col-md-6 col-lg-6"><a href="%s" class="btn btn-primary pull-right">Page suivante</a></div>

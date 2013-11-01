@@ -1,0 +1,18 @@
+<div class="row">
+    <div class="col-xs-6 col-sm-6 col-md-6 col-lg-6">
+        {{#previous}}
+            <a href="{{.}}" class="btn btn-primary">Page pr&eacute;c&eacute;dente</a>
+        {{/previous}}
+        {{^previous}}
+            &nbsp;
+        {{/previous}}
+    </div>
+    <div class="col-xs-6 col-sm-6 col-md-6 col-lg-6">
+        {{#next}}
+        <a href="{{.}}" class="btn btn-primary pull-right">Page suivante</a>
+        {{/next}}
+        {{^next}}
+        &nbsp;
+        {{/next}}
+    </div>
+</div>

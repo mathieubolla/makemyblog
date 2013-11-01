@@ -1,31 +1,41 @@
-import com.google.common.base.Joiner;
+import com.github.mustachejava.Mustache;
+import com.github.mustachejava.MustacheFactory;
+import com.google.common.base.Function;
 import com.google.common.base.Predicate;
-import com.google.common.collect.FluentIterable;
-import com.sun.xml.internal.xsom.impl.scd.Iterators;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
+import java.io.IOException;
+import java.io.StringWriter;
 import java.util.List;
+import java.util.concurrent.Callable;
+
+import static com.google.common.collect.FluentIterable.from;
+import static java.util.Arrays.asList;
 
 public class AlbumRenderer implements Renderer {
+    public static final Predicate<File> IS_JPG = new Predicate<File>() {
+        @Override
+        public boolean apply(File input) {
+            return input.getAbsolutePath().toLowerCase().endsWith(".jpg") || input.getAbsolutePath().toLowerCase().endsWith(".jpeg");
+        }
+    };
+
+    public static final Predicate<File> IS_FILE = new Predicate<File>() {
+        @Override
+        public boolean apply(File input) {
+            return input.isFile();
+        }
+    };
+
     private final PhotoService photoService;
+    private Mustache albumMustache;
 
-    private final String photoPairTemplate;
-    private final String photoSingleTemplate;
-
-    private final String photoSeparatorTemplate;
-    private final String albumStartTemplate;
-    private final String albumEndTemplate;
-
-    public AlbumRenderer(PhotoService photoService, String albumStartTemplate, String albumEndTemplate, String photoPairTemplate, String photoSingleTemplate, String photoSeparatorTemplate) {
-        this.albumStartTemplate = albumStartTemplate;
-        this.albumEndTemplate = albumEndTemplate;
-        this.photoPairTemplate = photoPairTemplate;
-        this.photoSingleTemplate = photoSingleTemplate;
-        this.photoSeparatorTemplate = photoSeparatorTemplate;
+    public AlbumRenderer(PhotoService photoService, MustacheFactory mustacheFactory) {
         this.photoService = photoService;
+        this.albumMustache = mustacheFactory.compile("album.mustache");
     }
 
     @Override
@@ -35,48 +45,44 @@ public class AlbumRenderer implements Renderer {
 
     @Override
     public void renderTo(StringBuilder destination, File input) {
-        List<String> photos = new ArrayList<String>();
-        Iterator<File> it = getJpgIterator(input);
+        Iterable<List<Callable<String>>> filePairs = Iterables.partition(from(listFiles(input)).filter(IS_FILE).filter(IS_JPG).transform(JPG_FILE_TO_URL), 2);
 
-        destination.append(String.format(albumStartTemplate, StringShortcuts.makeTitleFrom(input.getAbsolutePath())));
-
-        while (it.hasNext()) {
-            File photo1 = it.next();
-            if (it.hasNext()) {
-                addPhotoPair(photos, photo1, it.next());
-            } else {
-                addSinglePhoto(photos, photo1);
-            }
+        StringWriter writer = new StringWriter();
+        try {
+            albumMustache.execute(
+                    writer,
+                    ImmutableMap.builder()
+                        .put("title", StringShortcuts.makeTitleFrom(input.getAbsolutePath()))
+                        .put("picturePairs", filePairs)
+                        .build()
+            ).flush();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
-
-        destination.append(Joiner.on(photoSeparatorTemplate).join(photos));
-        destination.append(albumEndTemplate);
+        destination.append(writer.toString());
     }
 
-    private Iterator<File> getJpgIterator(File input) {
-        File[] files = input.listFiles();
-        if (files != null) {
-            return FluentIterable.from(Arrays.asList(files)).filter(new Predicate<File>() {
+    public final Function<File, Callable<String>> JPG_FILE_TO_URL = new Function<File, Callable<String>>() {
+        @Override
+        public Callable<String> apply(final File input) {
+            return new Callable<String>() {
                 @Override
-                public boolean apply(File input) {
-                    return input != null && input.isFile() && input.getAbsolutePath().endsWith(".jpg");
+                public String call() throws Exception {
+                    Photo photoPng = photoService.transcode(input);
+
+                    return photoPng.getUrl();
                 }
-            }).iterator();
+            };
         }
-        return Iterators.empty();
+    };
+
+    public static Iterable<File> listFiles(final File input) {
+        File[] files = input.listFiles();
+
+        if (files == null) {
+            return Lists.newArrayList();
+        }
+
+        return asList(files);
     }
-
-    private void addSinglePhoto(List<String> photos, File photo1) {
-        Photo photoPng = photoService.transcode(photo1);
-
-        photos.add(String.format(photoSingleTemplate, photoPng.getUrl()));
-    }
-
-    private void addPhotoPair(List<String> photos, File photo1, File photo2) {
-        Photo photoPng1 = photoService.transcode(photo1);
-        Photo photoPng2 = photoService.transcode(photo2);
-
-        photos.add(String.format(photoPairTemplate, photoPng1.getUrl(), photoPng2.getUrl()));
-    }
-
 }

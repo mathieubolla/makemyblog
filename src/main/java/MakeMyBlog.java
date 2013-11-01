@@ -5,6 +5,7 @@ import com.amazonaws.services.elastictranscoder.AmazonElasticTranscoder;
 import com.amazonaws.services.elastictranscoder.AmazonElasticTranscoderClient;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
+import com.github.mustachejava.DefaultMustacheFactory;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
@@ -33,11 +34,12 @@ public class MakeMyBlog {
         VideoService videoService = new VideoService(transcoder, storage, properties.getProperty("PRESET_ID_H264"), properties.getProperty("PRESET_ID_WEBM"), properties.getProperty("PRESET_ID_SD_H264"), properties.getProperty("PRESET_ID_SD_WEBM"), properties.getProperty("PIPELINE_TRANSCODE_FOR_MP4"));
         String baseUrl = properties.getProperty("BASE_URL");
         PhotoService photoService = new PhotoService(storage, baseUrl);
+        DefaultMustacheFactory mustacheFactory = new DefaultMustacheFactory("templates");
+
         final List<Renderer> renderers = Arrays.asList(
-                new AlbumRenderer(photoService, loadResource("templates/album-start.txt"), loadResource("templates/album-end.txt"), loadResource("templates/photo-pair.txt"), loadResource("templates/photo-single.txt"), loadResource("templates/photo-separator.txt")),
+                new AlbumRenderer(photoService, mustacheFactory),
                 new VideoRenderer(videoService, baseUrl, loadResource("templates/video.txt")),
                 new TexteRenderer(loadResource("templates/texte.txt")));
-
 
         final List<List<File>> sortedFiles = Lists.partition(FluentIterable.from(listSortedFiles(args[0])).filter(new Predicate<File>() {
             @Override
@@ -99,7 +101,7 @@ public class MakeMyBlog {
         for (File element : sortedFiles) {
             for (Renderer renderer : renderers) {
                 if (renderer.accept(element)) {
-                    System.err.println("Rendering "+element+" with "+renderer);
+                    System.err.println("Rendering " + element + " with " + renderer);
                     renderer.renderTo(html, element);
                 }
             }
@@ -150,7 +152,7 @@ public class MakeMyBlog {
     }
 
     private static void sendPageFile(StorageService storage, int page, String content) {
-        storage.sendPublic(content, "page-"+page+".html", "text/html");
+        storage.sendPublic(content, "page-" + page + ".html", "text/html");
     }
 
     private static void sendSupportFiles(StorageService storage) throws IOException {

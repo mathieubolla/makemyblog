@@ -45,17 +45,7 @@ public class MakeMyBlog {
                 new VideoRenderer(videoService, baseUrl, mustacheFactory),
                 new TexteRenderer(loadResource("templates/texte.txt")));
 
-        final List<List<File>> sortedFiles = Lists.partition(FluentIterable.from(listSortedFiles(args[0])).filter(new Predicate<File>() {
-            @Override
-            public boolean apply(File input) {
-                for (Renderer renderer : renderers) {
-                    if (renderer.accept(input)) {
-                        return true;
-                    }
-                }
-                return false;
-            }
-        }).toList(), 4);
+        final List<List<File>> sortedFiles = Lists.partition(FluentIterable.from(listSortedFiles(args[0])).filter(willRender(renderers)).toList(), 4);
 
         Map<String, Object> context = buildContext(properties);
         
@@ -65,6 +55,20 @@ public class MakeMyBlog {
         }
 
         sendSupportFiles(storage);
+    }
+
+    private static Predicate<File> willRender(final List<Renderer> renderers) {
+        return new Predicate<File>() {
+            @Override
+            public boolean apply(File input) {
+                for (Renderer renderer : renderers) {
+                    if (renderer.accept(input)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        };
     }
 
     private static String loadResource(String name) {
